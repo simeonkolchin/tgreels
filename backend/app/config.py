@@ -32,7 +32,9 @@ class Config:
 
     index_interval_hours: int = int(os.getenv("INDEX_INTERVAL_HOURS", "12"))
     max_history_per_channel: int = int(os.getenv("MAX_HISTORY_PER_CHANNEL", "0"))
-    vertical_only: bool = _bool("VERTICAL_ONLY", True)
+    # Горизонтальные ролики тоже берём — на фронте поворачиваем их на 90°
+    # (низ видео уходит влево). Квадратные/вертикальные — как есть.
+    vertical_only: bool = _bool("VERTICAL_ONLY", False)
     include_groups: bool = _bool("INCLUDE_GROUPS", False)
 
     # Размер одного запроса к Telegram при стриминге. Кратен 4096, максимум 1 МБ.

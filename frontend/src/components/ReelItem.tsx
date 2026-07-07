@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FeedItem } from '../types';
 import { reindexFeed } from '../api';
 import {
@@ -79,8 +79,34 @@ export default function ReelItem({
   onLikeChange,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const soundOnRef = useRef(soundOn);
   soundOnRef.current = soundOn;
+
+  // Горизонтальные ролики поворачиваем на 90° по часовой (низ уходит влево).
+  // Квадратные/вертикальные — без изменений.
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const upd = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    upd();
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const horizontal = item.width > 0 && item.height > 0 && item.width > item.height;
+  const rotatedStyle: React.CSSProperties | undefined =
+    horizontal && box.w
+      ? {
+          inset: 'auto',
+          top: '50%',
+          left: '50%',
+          width: box.h,
+          height: box.w,
+          transform: 'translate(-50%, -50%) rotate(90deg)',
+        }
+      : undefined;
   const [buffering, setBuffering] = useState(false);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -307,14 +333,15 @@ export default function ReelItem({
 
   return (
     <div className="reel" data-index={index}>
-      <div className="video-wrap">
-        <img className="poster" src={item.thumbUrl} alt="" loading="lazy" />
+      <div className="video-wrap" ref={wrapRef}>
+        <img className="poster" src={item.thumbUrl} alt="" loading="lazy" style={rotatedStyle} />
         {src && (
           <video
             ref={videoRef}
             className="video"
             src={src}
             poster={item.thumbUrl}
+            style={rotatedStyle}
             autoPlay={active}
             playsInline
             preload="auto"

@@ -108,8 +108,7 @@ async def _channel_videos(client):
                 )
                 if va is None:
                     continue
-                if va.w and va.h and va.h < va.w:  # только вертикальные
-                    continue
+                # горизонтальные тоже берём (фронт повернёт их на 90°)
                 items.append(
                     {"id": msg.id, "w": va.w or 0, "h": va.h or 0, "duration": int(va.duration or 0)}
                 )
