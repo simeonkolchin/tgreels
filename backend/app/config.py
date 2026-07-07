@@ -19,6 +19,9 @@ class Config:
     api_hash: str = os.getenv("API_HASH", "")
     # StringSession для тест-режима (99019) — чтобы не переавторизовываться
     tg_session: str = os.getenv("TG_SESSION", "")
+    # Прокси для Telethon (обход блокировок Telegram). Формат:
+    # http://host:port, socks5://user:pass@host:port. Пусто = напрямую.
+    tg_proxy: str = os.getenv("TG_PROXY", "")
 
     session_path: str = os.getenv("SESSION_PATH", "./data/session/userbot")
     db_path: str = os.getenv("DB_PATH", "./data/videos.db")
