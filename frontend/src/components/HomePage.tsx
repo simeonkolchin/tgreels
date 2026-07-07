@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchPhotos } from '../api';
 import type { Page, PhotoPost } from '../types';
-import { IconAccount, IconPersonPlus } from '../icons';
+import { IconPersonPlus } from '../icons';
 import BottomNav from './BottomNav';
 import PostCard from './PostCard';
 import Lightbox from './Lightbox';
+import ProfileView from './ProfileView';
+
+const DEFAULT_AVATAR = '/default-avatar.svg';
+function avatarFallback(e: React.SyntheticEvent<HTMLImageElement>) {
+  const img = e.currentTarget;
+  if (!img.src.endsWith(DEFAULT_AVATAR)) img.src = DEFAULT_AVATAR;
+}
 
 export default function HomePage({ onNav }: { onNav: (p: Page) => void }) {
   const seedRef = useRef(Math.floor(Math.random() * 1_000_000_000));
@@ -12,8 +19,23 @@ export default function HomePage({ onNav }: { onNav: (p: Page) => void }) {
   const [nextOffset, setNextOffset] = useState<number | null>(0);
   const [loaded, setLoaded] = useState(false);
   const [viewer, setViewer] = useState<{ photos: string[]; index: number } | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileClosing, setProfileClosing] = useState(false);
   const loadingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const openProfile = () => {
+    setProfileClosing(false);
+    setProfileOpen(true);
+  };
+  const closeProfile = () => {
+    setProfileClosing(true);
+    window.setTimeout(() => {
+      setProfileOpen(false);
+      setProfileClosing(false);
+    }, 480);
+  };
+  const profileActive = profileOpen && !profileClosing;
 
   const loadMore = useCallback(async () => {
     if (loadingRef.current || nextOffset === null) return;
@@ -53,13 +75,15 @@ export default function HomePage({ onNav }: { onNav: (p: Page) => void }) {
   }, [loadMore]);
 
   return (
-    <div className="page">
+    <div className={`page ${profileActive ? 'profile-active' : ''}`}>
       <header className="x-topbar">
-        <button className="x-topbar-btn" aria-label="аккаунт">
-          <IconAccount />
+        <button className="x-topbar-btn account-btn" onClick={openProfile} aria-label="профиль">
+          <span className="account-ava">
+            <img src="/api/me/photo?i=0" alt="" onError={avatarFallback} />
+          </span>
         </button>
-        <div className="r-logo">R</div>
-        <button className="x-topbar-btn" aria-label="добавить">
+        <img className="r-logo-img" src="/r-white.png" alt="R" />
+        <button className="x-topbar-btn logo-side" aria-label="добавить">
           <IconPersonPlus />
         </button>
       </header>
@@ -85,6 +109,8 @@ export default function HomePage({ onNav }: { onNav: (p: Page) => void }) {
           {nextOffset !== null && items.length > 0 && <div className="spinner small" />}
         </div>
       </div>
+
+      {profileOpen && <ProfileView closing={profileClosing} onClose={closeProfile} />}
 
       <BottomNav active="home" onNav={onNav} />
 

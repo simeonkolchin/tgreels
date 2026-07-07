@@ -43,6 +43,8 @@ async def _resolve_uncached(video_id: int) -> ResolvedDoc | None:
     if row is None:
         return None
     client = await get_client()
+    if client is None:
+        return None
     peer = await _channel_input(client, row["channel_id"])
     msg = await client.get_messages(peer, ids=row["message_id"])
     doc = getattr(msg, "document", None) if msg else None
@@ -74,6 +76,8 @@ async def _download(doc: Document, start: int, end: int):
     чанке отрезаем. request_size (1 МБ) кратен 4096. dc/размер берутся из doc.
     """
     client = await get_client()
+    if client is None:
+        return
     aligned = (start // 4096) * 4096
     skip = start - aligned
     remaining = end - start + 1
@@ -96,6 +100,13 @@ async def _download(doc: Document, start: int, end: int):
         yield bytes(chunk)
         if remaining <= 0:
             break
+
+
+async def stream_doc(doc: Document, start: int, end: int):
+    """Стрим произвольного документа (например, видео личного канала),
+    которого нет в БД. Ре-резолва нет — рассчитано на свежий (кэш ≤5 мин) doc."""
+    async for chunk in _download(doc, start, end):
+        yield chunk
 
 
 async def stream_range(video_id: int, info: ResolvedDoc, start: int, end: int):

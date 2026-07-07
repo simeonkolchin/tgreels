@@ -62,6 +62,8 @@ interface Props {
   onSetSound: (value: boolean) => void;
   onHide: (id: number) => void;
   onEnded: (index: number) => void;
+  initialLiked?: boolean;
+  onLikeChange?: (id: number, liked: boolean) => void;
 }
 
 export default function ReelItem({
@@ -73,6 +75,8 @@ export default function ReelItem({
   onSetSound,
   onHide,
   onEnded,
+  initialLiked = false,
+  onLikeChange,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const soundOnRef = useRef(soundOn);
@@ -81,7 +85,7 @@ export default function ReelItem({
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(initialLiked);
   const [breaking, setBreaking] = useState(false); // анимация «разбитого сердца» при снятии лайка
   const [followed, setFollowed] = useState(false);
   const [speeding, setSpeeding] = useState(false); // удержание справа → 2x
@@ -156,6 +160,7 @@ export default function ReelItem({
   const likeFromDoubleTap = () => {
     if (!liked) {
       setLiked(true);
+      onLikeChange?.(item.id, true);
       haptic(14);
     }
   };
@@ -222,11 +227,13 @@ export default function ReelItem({
     e.stopPropagation();
     if (liked) {
       setLiked(false);
+      onLikeChange?.(item.id, false);
       setBreaking(true);
       haptic(20);
       window.setTimeout(() => setBreaking(false), 520);
     } else {
       setLiked(true);
+      onLikeChange?.(item.id, true);
       haptic(14);
     }
   };

@@ -183,6 +183,64 @@ export function IconPersonPlus({ size = 26, className }: IconProps) {
   );
 }
 
+export function IconGear({ size = 25, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.9" />
+      <path
+        d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function IconMenu({ size = 26, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function IconGrid({ size = 24, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 3v18M15 3v18M3 9h18M3 15h18" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+export function IconReelsTab({ size = 24, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M10 8.5v7l6-3.5-6-3.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconHeartTab({ size = 24, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 20s-7.5-4.6-9.6-9.1C1 7.6 2.6 4.7 5.7 4.7c1.9 0 3.4 1.1 4.3 2.6.9-1.5 2.4-2.6 4.3-2.6 3.1 0 4.7 2.9 3.3 6.2C19.5 15.4 12 20 12 20z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconMusic({ size = 15, className }: IconProps) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none">

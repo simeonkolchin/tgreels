@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Archivo Black';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/archivo-black.ttf') format('truetype');
+}
+
 :root {
   --bg: #000;
   --text: #fff;
@@ -699,15 +707,79 @@ body {
   flex-direction: column;
   background: #000;
   color: #e7e9ea;
+  animation: page-fade 0.5s ease;
+}
+@keyframes page-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .x-topbar {
+  position: relative;
+  z-index: 8;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+  padding: max(6px, env(safe-area-inset-top)) 16px 6px; /* чуть уже */
   border-bottom: 1px solid #2f3336;
+}
+/* при открытом профиле прячем линию хедера (её заменяет линия профиля) */
+.page.profile-active .x-topbar {
+  border-bottom-color: transparent;
+}
+
+/* любую иконочную кнопку при нажатии красим нашим розовым */
+.nav-btn:active,
+.x-topbar-btn:active,
+.topbar-btn:active,
+.profile-back:active,
+.profile-gear:active,
+.act:active {
+  color: var(--like);
+}
+
+/* аватар аккаунта в хедере — белое кольцо как в рилсах */
+.account-btn {
+  padding: 2px;
+  transition: opacity 0.3s ease;
+}
+.account-ava {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  background: #222;
+}
+.account-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* при открытии профиля: R и +человек уезжают вправо, аватар/лента прячутся */
+.r-logo-img,
+.x-topbar .logo-side {
+  transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease;
+}
+.page.profile-active .r-logo-img,
+.page.profile-active .logo-side {
+  transform: translateX(160px);
+  opacity: 0;
+  pointer-events: none;
+}
+.page.profile-active .account-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+.feed {
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.page.profile-active .feed {
+  transform: translateY(100%);
 }
 .x-topbar-btn {
   background: none;
@@ -724,6 +796,12 @@ body {
   line-height: 1;
   color: #fff;
   font-family: Georgia, 'Times New Roman', serif;
+}
+/* белая R в хедере (плоская, без 3D и свечения) */
+.r-logo-img {
+  height: 30px;
+  width: auto;
+  object-fit: contain;
 }
 .stub-title {
   font-weight: 800;
@@ -877,6 +955,8 @@ body {
 
 /* нижняя навигация */
 .bottom-nav {
+  position: relative;
+  z-index: 20;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -884,6 +964,438 @@ body {
   padding: 9px 6px calc(9px + env(safe-area-inset-bottom));
   border-top: 1px solid #2f3336;
   background: #000;
+}
+
+/* ── Страница профиля ────────────────────────────────────── */
+.profile {
+  --bar-h: calc(env(safe-area-inset-top, 0px) + 46px);
+  position: absolute;
+  inset: 0;
+  z-index: 10; /* выше хедера (z8) → стрелка/шестерёнка кликабельны */
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-bottom: 80px; /* место под нижнюю навигацию */
+  animation: prof-fade 0.4s ease;
+}
+.profile::-webkit-scrollbar {
+  display: none;
+}
+.profile.closing {
+  animation: prof-fade-out 0.4s ease forwards;
+}
+@keyframes prof-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes prof-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* липкая панель: назад + меню — всегда сверху при скролле */
+.profile-bar {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--bar-h);
+  padding: env(safe-area-inset-top, 0px) 12px 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  pointer-events: none; /* панель прозрачна для скролла, кнопки — нет */
+}
+
+/* верхняя зона (шапка) — сюда пускаем розовое свечение, клипаем overflow.
+   margin-top: -bar-h → шапка стартует ПОД панелью, свечение не режется. */
+.profile-top {
+  position: relative;
+  overflow: hidden;
+  margin-top: calc(var(--bar-h) * -1);
+  border-bottom: 1px solid #2f3336;
+}
+.profile-glow {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 320px;
+  height: 320px;
+  margin-left: -160px;
+  border-radius: 50%;
+  background: #ff2d6f;
+  filter: blur(85px);
+  opacity: 0;
+  pointer-events: none;
+  animation:
+    prof-glow-in 0.9s ease 0.55s forwards,
+    prof-glow-move 9s ease-in-out 0.55s infinite;
+}
+@keyframes prof-glow-in {
+  to { opacity: 0.5; }
+}
+@keyframes prof-glow-move {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(22px, -16px) scale(1.12); }
+}
+.profile-back,
+.profile-gear {
+  pointer-events: auto;
+  background: none;
+  border: none;
+  color: #fff;
+  padding: 6px;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6));
+}
+.profile-back {
+  animation: fade 0.4s ease 0.05s both;
+}
+/* меню «закатывается» справа после ухода R/+человек */
+.profile-gear {
+  animation: gear-roll 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.28s both;
+}
+@keyframes gear-roll {
+  from { transform: translateX(72px) rotate(-210deg); opacity: 0; }
+  to { transform: translateX(0) rotate(0); opacity: 1; }
+}
+.profile-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--bar-h) + 16px) 24px 20px;
+  text-align: center;
+}
+/* зона аватара — система координат для парящих бейджей вокруг него */
+.profile-hero {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  margin: 0 auto;
+}
+.profile-ava {
+  position: relative;
+  z-index: 3; /* выше бейджей → они выплывают из-под аватара и прячутся за него */
+  width: 108px;
+  height: 108px;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2.5px solid #fff;
+  background: #222;
+  cursor: pointer;
+  animation: prof-ava-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.profile-ava:active {
+  transform: scale(0.94);
+}
+
+/* парящие сияющие бейджи статистики (Archivo Black).
+   z-index ниже аватара → выплывают из-под него и прячутся за него при закрытии. */
+.stat {
+  position: absolute;
+  z-index: 2;
+  white-space: nowrap;
+  color: #fff;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    transform 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.5s ease;
+}
+.stat.shown {
+  opacity: 1;
+}
+.stat-inner {
+  text-align: center; /* число и подпись — общий центр */
+  animation: stat-float 6s ease-in-out infinite;
+}
+.stat-num {
+  font-family: 'Archivo Black', system-ui, sans-serif;
+  font-size: 33px;
+  line-height: 0.92;
+  letter-spacing: -0.5px;
+  color: #fff;
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.5),
+    0 0 22px rgba(255, 255, 255, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  animation: stat-glow 4s ease-in-out infinite;
+}
+.stat-label {
+  font-family: 'Archivo Black', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  padding-left: 1.4px; /* компенсируем трекинг → подпись строго по центру */
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+
+/* три бейджа: положение, наклон, стартовая точка «из-под аватара» и ритм парения.
+   hidden (по умолчанию) — сдвиг к центру аватара; .shown — на своё место. */
+.stat-posts {
+  right: calc(100% + 22px);
+  top: 33%;
+  transform: translate(100px, 6px) rotate(-9deg);
+  transition-delay: 0s;
+}
+.stat-posts.shown {
+  transform: translate(0, 0) rotate(-9deg);
+}
+.stat-followers {
+  left: calc(100% + 14px);
+  top: -6%;
+  transform: translate(-108px, 34px) rotate(7deg);
+  transition-delay: 0.12s;
+}
+.stat-followers.shown {
+  transform: translate(0, 0) rotate(7deg);
+}
+.stat-followers .stat-inner {
+  animation-duration: 7.4s;
+  animation-delay: -2.3s;
+}
+.stat-likes {
+  left: calc(100% + 20px);
+  top: 62%;
+  transform: translate(-112px, -32px) rotate(-6deg);
+  transition-delay: 0.24s;
+}
+.stat-likes.shown {
+  transform: translate(0, 0) rotate(-6deg);
+}
+.stat-likes .stat-inner {
+  animation-duration: 8.2s;
+  animation-delay: -4.1s;
+}
+
+/* страница 2 — каналы / чаты / возраст: зеркально другим местам и наклонам */
+.stat-channels {
+  left: calc(100% + 22px);
+  top: 30%;
+  transform: translate(-100px, 6px) rotate(8deg);
+  transition-delay: 0s;
+}
+.stat-channels.shown {
+  transform: translate(0, 0) rotate(8deg);
+}
+.stat-channels .stat-inner {
+  animation-duration: 7.1s;
+  animation-delay: -1.5s;
+}
+.stat-chats {
+  right: calc(100% + 14px);
+  top: -6%;
+  transform: translate(100px, 34px) rotate(-8deg);
+  transition-delay: 0.12s;
+}
+.stat-chats.shown {
+  transform: translate(0, 0) rotate(-8deg);
+}
+.stat-chats .stat-inner {
+  animation-duration: 6.6s;
+  animation-delay: -3s;
+}
+.stat-saved {
+  right: calc(100% + 20px);
+  top: 62%;
+  transform: translate(108px, -32px) rotate(6deg);
+  transition-delay: 0.24s;
+}
+.stat-saved.shown {
+  transform: translate(0, 0) rotate(6deg);
+}
+.stat-saved .stat-inner {
+  animation-duration: 8s;
+  animation-delay: -5s;
+}
+
+/* при закрытии профиля / смене страницы — быстрый обратный каскад */
+.profile.closing .stat {
+  transition-duration: 0.4s;
+}
+.profile.closing .stat-likes,
+.profile.closing .stat-saved {
+  transition-delay: 0s;
+}
+.profile.closing .stat-followers,
+.profile.closing .stat-chats {
+  transition-delay: 0.08s;
+}
+.profile.closing .stat-posts,
+.profile.closing .stat-channels {
+  transition-delay: 0.16s;
+}
+
+@keyframes stat-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes stat-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 9px rgba(255, 255, 255, 0.42),
+      0 0 18px rgba(255, 255, 255, 0.2),
+      0 2px 6px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    text-shadow:
+      0 0 16px rgba(255, 255, 255, 0.75),
+      0 0 34px rgba(255, 255, 255, 0.4),
+      0 2px 6px rgba(0, 0, 0, 0.45);
+  }
+}
+.profile-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+@keyframes prof-ava-in {
+  from { transform: scale(0.32); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.profile-name {
+  margin-top: 14px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #fff;
+  animation: prof-up 0.5s ease 0.12s both;
+}
+.profile-username {
+  margin-top: 3px;
+  font-size: 15px;
+  color: #71767b;
+  animation: prof-up 0.5s ease 0.18s both;
+}
+@keyframes prof-up {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+/* переключатель разделов (фото / видео / лайки) — прилипает под панелью */
+.profile-tabs {
+  position: sticky;
+  top: var(--bar-h);
+  z-index: 11;
+  display: flex;
+  background: #000;
+  border-bottom: 1px solid #2f3336;
+  animation: prof-up 0.5s ease 0.24s both;
+}
+.ptab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #55595c;
+  padding: 11px 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease;
+}
+.ptab.active {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+.ptab:active {
+  color: #ff2d6f;
+}
+
+/* контент раздела — чёрный фон, без свечения */
+.profile-body {
+  background: #000;
+  min-height: 46vh;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 6px;
+  animation: prof-up 0.5s ease 0.3s both;
+}
+.profile-cell {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: #111;
+  border-radius: 5px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.profile-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.profile-cell:active {
+  opacity: 0.75;
+}
+
+/* сетка видео: формат 3:4, по 3 в ряд, с зазорами */
+.profile-vgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 6px;
+  animation: prof-up 0.5s ease 0.3s both;
+}
+.profile-vcell {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #111;
+  border-radius: 6px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.profile-vcell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.profile-vcell:active {
+  opacity: 0.75;
+}
+.vcell-play {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.profile-empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: #71767b;
+  font-size: 15px;
+  animation: fade 0.5s ease 0.3s both;
+}
+
+/* просмотр видео/лайков — та же страница рилсов. Контейнер повторяет .app
+   (центрирует «телефонную» колонку .stage на десктопе, на весь экран на мобиле). */
+.profile-reels-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, rgba(225, 29, 116, 0.16), transparent 60%),
+    radial-gradient(1000px 700px at 100% 110%, rgba(56, 96, 255, 0.14), transparent 60%),
+    #050505;
+  animation: fade 0.2s ease;
 }
 .nav-btn {
   background: none;
@@ -977,6 +1489,470 @@ body {
     opacity: 0;
   }
 }
+/* ── Страница авторизации ────────────────────────────────── */
+.auth {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: flex-end; /* панель прижата к низу с отступом = padding */
+  justify-content: center;
+  padding: 24px;
+  isolation: isolate; /* общий контекст z-index: карточки над/под буквой R */
+}
+
+/* анимированный фон: мягкий розовый свет сверху, аккуратно доходящий до низа.
+   Высота фиксирована к ПОСТОЯННОЙ высоте экрана (lvh/vh), а не dvh — чтобы при
+   открытии клавиатуры фон (R и кружки) НЕ двигался, ехала только панель. */
+.auth-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100lvh;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(135% 105% at 50% -8%,
+      rgba(255, 45, 111, 0.26) 0%,
+      rgba(255, 45, 111, 0.12) 34%,
+      rgba(255, 45, 111, 0.04) 60%,
+      transparent 82%);
+}
+/* мягкое розовое пятно-источник сверху */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.blob.b1 {
+  width: 380px;
+  height: 380px;
+  left: 24%;
+  top: -190px;
+  margin-left: -190px;
+  background: #ff2d6f;
+  opacity: 0.5;
+  will-change: transform;
+}
+/* нижний мягкий кружок — проступает сквозь панель */
+.blob.b2 {
+  width: 300px;
+  height: 300px;
+  left: 50%;
+  bottom: -150px;
+  margin-left: -150px;
+  background: #ff2d6f;
+  opacity: 0.3;
+  will-change: transform;
+}
+/* центр */
+.auth-center {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+/* большая 3D-буква R на фоне: под наклоном, «упавшая» за края экрана,
+   серая и как будто вдали, обволакивается цветным светом от пятен */
+.bg-r {
+  position: absolute;
+  left: 50%;
+  top: 12%; /* якорь ниже, чтобы при float не выезжала за верх */
+  width: 60%;
+  max-width: 300px;
+  transform: translateX(-50%) rotate(-17deg);
+  opacity: 0.5;
+  filter:
+    brightness(0.95)
+    drop-shadow(0 0 40px rgba(255, 45, 111, 0.4))
+    drop-shadow(0 0 80px rgba(255, 45, 111, 0.28));
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+  z-index: 2; /* R между слоями карточек: под front-карточкой, над остальными */
+  animation: bg-r-float 16s ease-in-out infinite;
+}
+/* заметное «парение» буквы R */
+@keyframes bg-r-float {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-17deg) scale(1); }
+  50% { transform: translateX(-50%) translateY(-24px) rotate(-13deg) scale(1.02); }
+}
+.auth-sub {
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  min-height: 20px;
+}
+.auth-card {
+  margin-top: 22px;
+  width: 100%;
+  padding: 20px 18px;
+  border-radius: 20px;
+  /* полупрозрачная тёмная панель (розовое свечение мягко проступает),
+     без backdrop-filter — чтобы движение панели не трогало фон */
+  background: rgba(14, 8, 11, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  will-change: transform;
+}
+/* появление: быстро проезжает, медленно докатывается (ease-out expo) */
+.auth-card.card-in {
+  animation: auth-card-in 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* уход: медленно начинает, потом ускоряется (ease-in) */
+.auth-card.card-out {
+  animation: auth-card-out 0.6s cubic-bezier(0.6, 0, 1, 0.4) forwards;
+}
+@keyframes auth-card-in {
+  from { transform: translateY(130%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes auth-card-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(140%); opacity: 0; }
+}
+
+/* ── Финальный разлёт после успешного входа ──────────────── */
+.auth.finishing .bg-r {
+  animation: r-fly-up 0.7s cubic-bezier(0.6, 0, 1, 0.4) forwards;
+}
+.auth.finishing .blob.b1 {
+  animation: blob-fly-up 0.7s cubic-bezier(0.6, 0, 1, 0.4) forwards;
+}
+.auth.finishing .blob.b2 {
+  animation: blob-fly-down 0.7s cubic-bezier(0.6, 0, 1, 0.4) forwards;
+}
+.auth.finishing .auth-bg {
+  animation: fade-out 0.4s ease 0.35s forwards;
+}
+@keyframes r-fly-up {
+  from { transform: translateX(-50%) translateY(0) rotate(-17deg); opacity: 0.5; }
+  to { transform: translateX(-50%) translateY(-150%) rotate(-26deg); opacity: 0; }
+}
+@keyframes blob-fly-up {
+  to { transform: translate(-40px, -420px) scale(0.7); opacity: 0; }
+}
+@keyframes blob-fly-down {
+  to { transform: translate(0, 420px) scale(0.7); opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-input {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 16px;
+  text-align: center; /* текст по центру */
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+.auth-input:focus {
+  border-color: var(--like);
+  background: rgba(255, 255, 255, 0.06);
+}
+/* 5 квадратиков для кода */
+.code-boxes {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.code-box {
+  width: 46px;
+  height: 56px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.code-box:focus {
+  border-color: var(--like);
+}
+.auth-btn {
+  margin-top: 3px;
+  padding: 14px;
+  border-radius: 13px;
+  border: none;
+  background: linear-gradient(135deg, #ff2d6f 0%, #2a0512 100%);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.auth-btn:active {
+  transform: scale(0.99);
+}
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.auth-error {
+  color: #ff5a5a;
+  font-size: 13px;
+  text-align: left;
+}
+.auth-help {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.45);
+  text-decoration: none;
+}
+.auth-back {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* согласие с соглашением — чекбокс со звёздочкой нашего цвета */
+.auth-agree {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  user-select: none;
+}
+.auth-check {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+/* звёздочка видна всегда: неактивная — серая и под одним углом */
+.auth-check::after {
+  content: '*';
+  position: absolute;
+  left: 40%;
+  top: 90%;
+  transform: translate(-50%, -50%) rotate(-28deg);
+  font-size: 66px;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.3);
+  text-shadow: none;
+  transition:
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.3s ease,
+    text-shadow 0.3s ease;
+}
+/* активная — докручивается до нового угла и загорается розовым */
+.auth-check.on::after {
+  transform: translate(-50%, -50%) rotate(18deg);
+  color: var(--like);
+  text-shadow: 0 0 12px rgba(255, 45, 111, 0.6);
+}
+.auth-check.on {
+  border-color: var(--like);
+}
+.auth-agree a {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Экран обработки аккаунта после логина ───────────────── */
+.boot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px;
+  text-align: center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 45, 111, 0.15), transparent 60%),
+    #000;
+}
+.boot-r {
+  height: 84px;
+  width: auto;
+  filter: drop-shadow(0 0 20px rgba(255, 45, 111, 0.4));
+  animation: boot-pulse 2s ease-in-out infinite;
+}
+@keyframes boot-pulse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+.boot-status {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 15px;
+  min-height: 20px;
+}
+.boot-bar {
+  width: min(300px, 82%);
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.boot-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ff2d6f, #ff6b9d);
+  transition: width 0.2s ease;
+}
+.boot-pct {
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.boot-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: fade 0.4s ease;
+}
+.boot-title {
+  color: #fff;
+  font-size: 23px;
+  font-weight: 800;
+}
+.boot-counts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.boot-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+.boot-btn {
+  margin-top: 4px;
+  padding: 13px 44px;
+  border-radius: 13px;
+  border: none;
+  background: linear-gradient(135deg, #ff2d6f, #2a0512);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.boot-btn:active {
+  transform: scale(0.98);
+}
+
+/* онбординг по центру (загрузка/результат) поверх статичного фона */
+.auth-onboard {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  /* верхний отступ больше → блок ниже центра, не залезает на R */
+  padding: 24vh 32px 32px;
+  text-align: center;
+  animation: fade 0.45s ease;
+}
+/* счётчики — просто белый текст, без фона и эмодзи */
+.boot-counts-text {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* плавающие карточки медиа */
+.float-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* без z-index — чтобы z-index отдельных карточек работал в контексте .auth */
+}
+.float-card {
+  position: absolute;
+}
+.float-card-inner {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  background: #111;
+  /* без обводки, глубокая тень для наезда/3D */
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.6),
+    0 4px 14px rgba(0, 0, 0, 0.5);
+  display: grid;
+  place-items: center;
+  animation:
+    card-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) both,
+    card-float 4.5s ease-in-out infinite;
+  animation-delay: var(--d), calc(var(--d) + 0.7s);
+}
+@keyframes card-enter {
+  from { transform: translateX(var(--fromx)); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes card-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+/* вылет карточек при «Смотреть» */
+.auth.finishing .float-card-inner {
+  animation: card-fly 0.68s cubic-bezier(0.6, 0, 1, 0.4) forwards;
+}
+@keyframes card-fly {
+  to { transform: translateY(var(--fly)); opacity: 0; }
+}
+.float-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.float-play {
+  position: relative;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  border-left: 15px solid rgba(255, 255, 255, 0.95);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  margin-left: 4px;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6));
+}
+
 /* ── Плейсхолдеры ────────────────────────────────────────── */
 .placeholder {
   position: absolute;

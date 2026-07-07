@@ -67,6 +67,54 @@ def reset_cursors():
     db.execute("UPDATE channels SET last_message_id = 0")
 
 
+# ── Настройки / авторизация (шифрованная сессия) ────────────
+
+def set_setting(key: str, value: str):
+    db.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+
+
+def get_setting(key: str):
+    row = db.query_one("SELECT value FROM settings WHERE key = ?", (key,))
+    return row["value"] if row else None
+
+
+def save_auth(api_id, api_hash: str, session: str, phone: str | None = None):
+    from app.crypto import encrypt
+
+    set_setting("api_id", encrypt(str(api_id)))
+    set_setting("api_hash", encrypt(api_hash))
+    set_setting("session", encrypt(session))
+    if phone:
+        set_setting("phone", encrypt(phone))
+
+
+def get_auth():
+    from app.crypto import decrypt
+
+    ai = get_setting("api_id")
+    ah = get_setting("api_hash")
+    se = get_setting("session")
+    if not (ai and ah and se):
+        return None
+    try:
+        return {
+            "api_id": int(decrypt(ai)),
+            "api_hash": decrypt(ah),
+            "session": decrypt(se),
+        }
+    except Exception:  # noqa: BLE001 — битый ключ/данные
+        return None
+
+
+def clear_auth():
+    for k in ("api_id", "api_hash", "session", "phone"):
+        db.execute("DELETE FROM settings WHERE key = ?", (k,))
+
+
 # ── Видео ───────────────────────────────────────────────────
 
 def insert_video(v: dict) -> bool:
@@ -132,6 +180,49 @@ def get_video(video_id: int):
 def hide_video(video_id: int):
     """Пометить видео как «не интересует» — больше не показывать в ленте."""
     db.execute("UPDATE videos SET hidden = 1 WHERE id = ?", (video_id,))
+
+
+# ── Лайки ───────────────────────────────────────────────────
+
+def set_like(video_id: int, liked: bool):
+    if liked:
+        db.execute(
+            "INSERT OR IGNORE INTO likes (video_id, added_at) VALUES (?, ?)",
+            (video_id, int(time.time())),
+        )
+    else:
+        db.execute("DELETE FROM likes WHERE video_id = ?", (video_id,))
+
+
+def is_liked(video_id: int) -> bool:
+    return db.query_one("SELECT 1 FROM likes WHERE video_id = ?", (video_id,)) is not None
+
+
+def liked_ids() -> list[int]:
+    rows = db.query_all("SELECT video_id FROM likes ORDER BY added_at DESC")
+    return [r["video_id"] for r in rows]
+
+
+# ── Статистика канала пользователя (кэш в settings) ─────────
+
+def set_stat(key: str, value: int):
+    set_setting(key, str(int(value)))
+
+
+def get_stats() -> dict:
+    def gi(k):
+        v = get_setting(k)
+        return int(v) if v is not None else None
+
+    return {
+        "posts": gi("stat_posts"),
+        "followers": gi("stat_followers"),
+        "likes": gi("stat_likes"),
+        "channels": gi("stat_channels"),
+        "chats": gi("stat_chats"),
+        "saved": gi("stat_saved"),
+        "ts": gi("stat_ts"),
+    }
 
 
 def get_thumb(video_id: int):

@@ -166,6 +166,9 @@ async def index_all() -> int:
     """Полный проход: синк каналов + индексация каждого."""
     async with _lock:
         client = await get_client()
+        if client is None:
+            print("[index] нет авторизации — пропускаю")
+            return 0
 
         found = await sync_channels(client)
         channels = repo.get_channels()

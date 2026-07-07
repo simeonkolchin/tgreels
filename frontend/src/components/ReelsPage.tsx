@@ -1,22 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchFeed, hideVideo } from '../api';
+import { fetchFeed, hideVideo, setLike } from '../api';
 import type { FeedItem } from '../types';
 import ReelsFeed from './ReelsFeed';
 import TopBar from './TopBar';
 
-// Страница рилсов (как была в App). Стрелка сверху ведёт на главную.
-export default function ReelsPage({ onGoHome }: { onGoHome: () => void }) {
+// Один и тот же экран рилсов:
+//  • без `fixed` — бесконечная лента с сервера (главные рилсы);
+//  • с `fixed`   — конечная подборка (видео канала / лайки из профиля),
+//    отличается только тем, куда ведёт кнопка «назад».
+interface Props {
+  onGoHome: () => void;
+  fixed?: { items: FeedItem[]; startIndex?: number; likedAll?: boolean };
+}
+
+export default function ReelsPage({ onGoHome, fixed }: Props) {
   const seedRef = useRef(Math.floor(Math.random() * 1_000_000_000));
-  const [items, setItems] = useState<FeedItem[]>([]);
-  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [items, setItems] = useState<FeedItem[]>(fixed ? fixed.items : []);
+  const [nextOffset, setNextOffset] = useState<number | null>(fixed ? null : 0);
   const [soundOn, setSoundOn] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(!!fixed);
   const [feedKey, setFeedKey] = useState(0); // ремоунт ленты (сброс скролла) при обновлении
   const loadingRef = useRef(false);
 
+  const likedIds = fixed?.likedAll ? new Set(items.map((i) => i.id)) : undefined;
+
   const loadMore = useCallback(async () => {
-    if (loadingRef.current || nextOffset === null) return;
+    if (fixed || loadingRef.current || nextOffset === null) return;
     loadingRef.current = true;
     try {
       const res = await fetchFeed(seedRef.current, nextOffset);
@@ -32,10 +42,10 @@ export default function ReelsPage({ onGoHome }: { onGoHome: () => void }) {
       loadingRef.current = false;
       setLoaded(true);
     }
-  }, [nextOffset]);
+  }, [nextOffset, fixed]);
 
   useEffect(() => {
-    loadMore();
+    if (!fixed) loadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -44,8 +54,20 @@ export default function ReelsPage({ onGoHome }: { onGoHome: () => void }) {
     hideVideo(id);
   };
 
-  // Обновить ленту: новый сид → перемешать всё и начать сверху.
+  // Обновить: в ленте — новый сид (перемешать всё сверху); в подборке — перетасовать локально.
   const refresh = async () => {
+    if (fixed) {
+      setItems((prev) => {
+        const a = [...prev];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      });
+      setFeedKey((k) => k + 1);
+      return;
+    }
     const newSeed = Math.floor(Math.random() * 1_000_000_000);
     seedRef.current = newSeed;
     setItems([]);
@@ -99,10 +121,13 @@ export default function ReelsPage({ onGoHome }: { onGoHome: () => void }) {
         <ReelsFeed
           key={feedKey}
           items={items}
+          startIndex={fixed?.startIndex}
           soundOn={soundOn}
           onSetSound={setSoundOn}
           onHide={handleHide}
           onNearEnd={loadMore}
+          likedIds={likedIds}
+          onLike={setLike}
         />
       )}
     </>

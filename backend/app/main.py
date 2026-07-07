@@ -1,35 +1,53 @@
+import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import channel, feed, photo, stream, thumb
+from app.config import config
+from app.routes import auth, channel, feed, me, photo, stream, thumb
+from app.session import require_session
 from app.telegram.client import ensure_authorized, get_client
+
+_index_task: asyncio.Task | None = None
+
+
+async def _index_loop():
+    """In-process индексация: первичная (если пусто) + периодическая раз в N часов.
+    Пока нет авторизации — тихо ждёт (логин прогонит стартовую индексацию сам)."""
+    interval = max(1, config.index_interval_hours) * 3600
+    from app.parser.indexer import index_all
+
+    while True:
+        try:
+            if await ensure_authorized():
+                # прогреть entity-кэш (access_hash каналов сессия-специфичны)
+                try:
+                    client = await get_client()
+                    if client is not None:
+                        await client.get_dialogs()
+                except Exception:  # noqa: BLE001
+                    pass
+                await index_all()
+        except Exception as e:  # noqa: BLE001
+            print(f"[app] индексация упала: {e}")
+        await asyncio.sleep(interval)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # API только раздаёт (feed/thumb/stream). Индексацией занимается воркер
-    # (отдельный контейнер). Здесь проверяем свою стрим-сессию и прогреваем
-    # entity-кэш: access_hash каналов сессия-специфичны, для стрима нужно, чтобы
-    # эта сессия знала каналы (резолв по channel_id через get_input_entity).
+    global _index_task
     if await ensure_authorized():
-        print("[app] стрим-сессия авторизована")
-        try:
-            client = await get_client()
-            dialogs = await client.get_dialogs()
-            print(f"[app] entity-кэш прогрет: {len(dialogs)} диалогов")
-        except Exception as e:  # noqa: BLE001
-            print(f"[app] не удалось прогреть диалоги: {e}")
+        print("[app] сессия авторизована")
     else:
-        print(
-            "\n[!] Стрим-сессия API не авторизована. Останови и залогинь:\n"
-            "    docker compose run --rm backend python scripts/login.py\n"
-        )
+        print("[app] нет авторизации — открой страницу и войди")
+    _index_task = asyncio.create_task(_index_loop())
     yield
+    if _index_task:
+        _index_task.cancel()
 
 
-app = FastAPI(title="Vertical Videos (Telegram → Reels)", lifespan=lifespan)
+app = FastAPI(title="Reels (Telegram)", lifespan=lifespan)
 
 # В деве фронт крутится на другом порту (Vite) — разрешаем CORS.
 app.add_middleware(
@@ -39,11 +57,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(feed.router)
-app.include_router(stream.router)
-app.include_router(thumb.router)
-app.include_router(channel.router)
-app.include_router(photo.router)
+# auth — открыт; остальное только с валидной cookie устройства
+app.include_router(auth.router)
+_guard = [Depends(require_session)]
+app.include_router(feed.router, dependencies=_guard)
+app.include_router(stream.router, dependencies=_guard)
+app.include_router(thumb.router, dependencies=_guard)
+app.include_router(channel.router, dependencies=_guard)
+app.include_router(photo.router, dependencies=_guard)
+app.include_router(me.router, dependencies=_guard)
 
 
 @app.get("/health")

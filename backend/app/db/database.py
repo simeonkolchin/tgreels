@@ -51,6 +51,16 @@ CREATE TABLE IF NOT EXISTS photos (
 
 CREATE INDEX IF NOT EXISTS idx_photos_channel ON photos(channel_id);
 CREATE INDEX IF NOT EXISTS idx_photos_group ON photos(channel_id, post_key);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS likes (
+    video_id INTEGER PRIMARY KEY,
+    added_at INTEGER
+);
 """
 
 # sqlite3 синхронный; FastAPI + Telethon асинхронные. Держим одно соединение

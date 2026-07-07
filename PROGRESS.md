@@ -139,6 +139,18 @@ Frontend:
 - StubPage «в разработке» для search/notifications/messages.
 - Иконки: Home/Bell/Mail/ReelsNav/Account/PersonPlus (SVG), R-лого текстом.
 
+## Итерация 9: веб-авторизация (вместо .env) — ГОТОВО ✅
+- Страница логина (AuthPage): чёрный фон, буква R, анимированный фон (blob'ы + ghost-R),
+  2 шага: (api_id/hash/телефон) → код → при 2FA пароль. Гейтинг приложения по /api/auth/status.
+- Backend /api/auth/*: start (send_code) / code (sign_in) / password (2FA) / status / logout.
+- Сессия шифруется (Fernet, ключ в data/secret.key 0600) и хранится в БД (settings).
+  api_id/api_hash тоже зашифрованы. .env для креды больше НЕ нужен.
+- client.py строит Telethon из БД (StringSession) + reset_client. get_client() может быть None.
+- АРХИТЕКТУРА: worker убран, индексация IN-PROCESS в API (один логин = одна сессия, один
+  процесс). Планировщик в lifespan; после логина стартовая индексация в фоне.
+- ВАЖНО: старая файловая сессия/.env-креды игнорируются — нужно один раз войти через веб.
+  secret.key НЕ терять (иначе сессию в БД не расшифровать).
+
 ## Возможные доработки (если понадобится)
 - лайки/шеры, звук-по-умолчанию, аналитика просмотров
 - Redis-кэш горячих чанков при высоком трафике

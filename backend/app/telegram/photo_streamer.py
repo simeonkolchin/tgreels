@@ -55,6 +55,8 @@ async def get_photo_bytes(photo_id: int) -> bytes | None:
         return None
 
     client = await get_client()
+    if client is None:
+        return None
     peer = await _channel_input(client, row["channel_id"])
     msg = await client.get_messages(peer, ids=row["message_id"])
     if msg is None or msg.photo is None:

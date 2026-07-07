@@ -17,9 +17,13 @@ def _bool(name: str, default: bool) -> bool:
 class Config:
     api_id: int = int(os.getenv("API_ID", "0"))
     api_hash: str = os.getenv("API_HASH", "")
+    # StringSession для тест-режима (99019) — чтобы не переавторизовываться
+    tg_session: str = os.getenv("TG_SESSION", "")
 
     session_path: str = os.getenv("SESSION_PATH", "./data/session/userbot")
     db_path: str = os.getenv("DB_PATH", "./data/videos.db")
+    # ключ шифрования сессии (генерируется автоматически при первом старте)
+    secret_key_file: str = os.getenv("SECRET_KEY_FILE", "./data/secret.key")
 
     port: int = int(os.getenv("PORT", "8000"))
 
@@ -35,5 +39,5 @@ class Config:
 
 config = Config()
 
-if not config.api_id or not config.api_hash:
-    print("[config] API_ID / API_HASH не заданы — заполни .env (см. .env.example)")
+# API_ID/API_HASH теперь вводятся через страницу авторизации и хранятся
+# зашифрованными в БД — .env для них больше не обязателен.

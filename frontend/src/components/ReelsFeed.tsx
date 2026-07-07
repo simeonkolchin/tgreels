@@ -8,6 +8,9 @@ interface Props {
   onSetSound: (value: boolean) => void;
   onHide: (id: number) => void;
   onNearEnd: () => void;
+  likedIds?: Set<number>;
+  onLike?: (id: number, liked: boolean) => void;
+  startIndex?: number;
 }
 
 export default function ReelsFeed({
@@ -16,9 +19,21 @@ export default function ReelsFeed({
   onSetSound,
   onHide,
   onNearEnd,
+  likedIds,
+  onLike,
+  startIndex = 0,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(startIndex);
+
+  // Открытие с конкретного ролика (тап по превью в профиле) — мгновенный скролл.
+  useEffect(() => {
+    if (startIndex <= 0) return;
+    const root = containerRef.current;
+    const el = root?.querySelector<HTMLElement>(`.reel[data-index="${startIndex}"]`);
+    el?.scrollIntoView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Активный ролик: тот, что заполняет вьюпорт больше чем на 60%.
   useEffect(() => {
@@ -69,6 +84,8 @@ export default function ReelsFeed({
           onSetSound={onSetSound}
           onHide={onHide}
           onEnded={(idx) => goTo(idx + 1)}
+          initialLiked={likedIds?.has(item.id)}
+          onLikeChange={onLike}
         />
       ))}
     </div>

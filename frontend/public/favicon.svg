@@ -1,6 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.4" flood-color="#ff2d6f" flood-opacity="0.95"/>
+    </filter>
+  </defs>
   <rect width="64" height="64" rx="15" fill="#000000"/>
   <text x="32" y="33" text-anchor="middle" dominant-baseline="central"
         font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="800"
-        fill="#ffffff">R</text>
+        fill="#ffffff" filter="url(#glow)">R</text>
 </svg>
