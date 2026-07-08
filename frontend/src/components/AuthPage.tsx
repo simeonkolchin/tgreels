@@ -1,5 +1,14 @@
-import { useState } from 'react';
-import { authCode, authPassword, authStart, reindexFeed } from '../api';
+import { useEffect, useState } from 'react';
+import {
+  authCode,
+  authLogin,
+  authLoginCode,
+  authPassword,
+  authRegister,
+  authStart,
+  checkUsername,
+  reindexFeed,
+} from '../api';
 import CodeInput from './CodeInput';
 
 interface MediaItem {
@@ -8,7 +17,18 @@ interface MediaItem {
   poster?: string;
 }
 
-type Step = 'creds' | 'code' | 'password' | 'loading' | 'result';
+type Step =
+  | 'choice'
+  | 'creds'
+  | 'code'
+  | 'password'
+  | 'account'
+  | 'login'
+  | 'login-code'
+  | 'loading'
+  | 'result';
+
+const UNAME_RE = /^[a-z0-9_]{3,20}$/;
 
 // плавающие карточки: крупные, с наездом. front → над буквой R, остальные под ней
 const MEDIA = [
@@ -21,7 +41,7 @@ const MEDIA = [
 ];
 
 export default function AuthPage({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<Step>('creds');
+  const [step, setStep] = useState<Step>('choice');
   const [cardOut, setCardOut] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [apiId, setApiId] = useState('');
@@ -30,6 +50,13 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
+  // регистрация: логин/пароль приложения
+  const [username, setUsername] = useState('');
+  const [regPass, setRegPass] = useState('');
+  const [unameOk, setUnameOk] = useState<boolean | null>(null);
+  // вход
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -45,6 +72,25 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
     }, 600);
   };
 
+  // проверка доступности логина (регистрация) с дебаунсом
+  useEffect(() => {
+    if (step !== 'account') return;
+    const u = username.trim().toLowerCase();
+    if (!UNAME_RE.test(u)) {
+      setUnameOk(null);
+      return;
+    }
+    let alive = true;
+    const t = window.setTimeout(async () => {
+      const ok = await checkUsername(u);
+      if (alive) setUnameOk(ok);
+    }, 400);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
+  }, [username, step]);
+
   // после успешного входа: панель уезжает вниз → загрузка по центру (фон на месте)
   const goToLoading = () => {
     setCardOut(true);
@@ -54,7 +100,6 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
     }, 600);
   };
 
-  // реальная обработка: прогресс до 90% пока идёт индексация, затем счётчики + постеры
   const runOnboard = async () => {
     let p = 0;
     const id = window.setInterval(() => {
@@ -77,7 +122,6 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
     window.setTimeout(() => setStep('result'), 450);
   };
 
-  // тянем немного реальных постеров: фото из /api/photos + превью видео из /api/feed
   const fetchMedia = async () => {
     try {
       const seed = Math.floor(Math.random() * 1_000_000_000);
@@ -109,22 +153,20 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
     }
   };
 
-  // «Смотреть»: улетает всё (R, кружки, карточки) → главная
   const finish = () => {
     setFinishing(true);
     window.setTimeout(onDone, 780);
   };
 
+  // ── регистрация ──
   const submitCreds = async () => {
     setError(null);
-    if (!apiId.trim() || !apiHash.trim() || !phone.trim()) {
-      setError('Заполни все поля');
-      return;
-    }
+    if (!apiId.trim() || !apiHash.trim() || !phone.trim()) return setError('Заполни все поля');
     setLoading(true);
     const r = await authStart(Number(apiId.trim()), apiHash, phone);
     setLoading(false);
     if (!r.ok) return setError(r.error || 'Не удалось отправить код');
+    setCode('');
     goToStep('code');
   };
 
@@ -136,7 +178,11 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
     setLoading(false);
     if (!r.ok) return setError(r.error || 'Неверный код');
     if (r.step === 'password') return goToStep('password');
-    if (r.step === 'done') goToLoading();
+    if (r.step === 'account') {
+      setUsername(r.username || '');
+      return goToStep('account');
+    }
+    if (r.step === 'done') goToLoading(); // тест-режим
   };
 
   const submitPassword = async () => {
@@ -146,6 +192,45 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
     const r = await authPassword(password);
     setLoading(false);
     if (!r.ok) return setError(r.error || 'Неверный пароль');
+    if (r.step === 'account') {
+      setUsername(r.username || '');
+      return goToStep('account');
+    }
+    if (r.step === 'done') goToLoading();
+  };
+
+  const submitAccount = async () => {
+    setError(null);
+    const u = username.trim().toLowerCase();
+    if (!UNAME_RE.test(u)) return setError('Логин: 3–20 символов, латиница/цифры/_');
+    if (unameOk === false) return setError('Такой логин уже занят');
+    if (regPass.length < 4) return setError('Пароль минимум 4 символа');
+    setLoading(true);
+    const r = await authRegister(u, regPass);
+    setLoading(false);
+    if (!r.ok) return setError(r.error || 'Не удалось зарегистрироваться');
+    goToLoading();
+  };
+
+  // ── вход ──
+  const submitLogin = async () => {
+    setError(null);
+    if (!loginUser.trim() || !loginPass) return setError('Введи логин и пароль');
+    setLoading(true);
+    const r = await authLogin(loginUser.trim().toLowerCase(), loginPass);
+    setLoading(false);
+    if (!r.ok) return setError(r.error || 'Не удалось войти');
+    setCode('');
+    goToStep('login-code');
+  };
+
+  const submitLoginCode = async () => {
+    setError(null);
+    if (!code.trim()) return setError('Введи код');
+    setLoading(true);
+    const r = await authLoginCode(code);
+    setLoading(false);
+    if (!r.ok) return setError(r.error || 'Неверный код');
     if (r.step === 'done') goToLoading();
   };
 
@@ -158,7 +243,18 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
           ? 'Собираем ленту…'
           : 'Почти готово…';
 
-  const isForm = step === 'creds' || step === 'code' || step === 'password';
+  const sub =
+    step === 'password'
+      ? 'Двухфакторная защита'
+      : step === 'account'
+        ? 'Придумайте логин и пароль'
+        : step === 'login'
+          ? 'С возвращением'
+          : step === 'login-code'
+            ? 'Код отправлен в «Избранное» Telegram'
+            : null;
+
+  const isForm = step !== 'loading' && step !== 'result';
 
   return (
     <div className={`auth ${finishing ? 'finishing' : ''}`}>
@@ -168,7 +264,6 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
       </div>
       <span className="blob b2" />
 
-      {/* плавающие карточки медиа (на экране результата) */}
       {step === 'result' && (
         <div className="float-layer">
           {MEDIA.map((m, i) =>
@@ -215,12 +310,28 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
         </div>
       )}
 
-      {/* авторизация (нижняя панель) */}
       {isForm && (
         <div className="auth-center">
-          {step === 'password' && <div className="auth-sub">Двухфакторная защита</div>}
+          {sub && <div className="auth-sub">{sub}</div>}
 
           <div key={step} className={`auth-card ${cardOut ? 'card-out' : 'card-in'}`}>
+            {step === 'choice' && (
+              <div className="auth-form">
+                <div className="auth-choice">
+                  <button type="button" className="auth-btn" onClick={() => goToStep('login')}>
+                    Войти
+                  </button>
+                  <button
+                    type="button"
+                    className="auth-btn auth-btn-ghost"
+                    onClick={() => goToStep('creds')}
+                  >
+                    Регистрация
+                  </button>
+                </div>
+              </div>
+            )}
+
             {step === 'creds' && (
               <div className="auth-form">
                 <input className="auth-input" placeholder="API ID" inputMode="numeric" value={apiId} onChange={(e) => setApiId(e.target.value)} />
@@ -237,18 +348,18 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
                 <button type="button" className="auth-btn" onClick={submitCreds} disabled={loading || !agreed}>
                   {loading ? 'Отправляю…' : 'Продолжить'}
                 </button>
-                <a className="auth-help" href="https://my.telegram.org" target="_blank" rel="noreferrer">
-                  Где взять API ID и Hash? → my.telegram.org
-                </a>
+                <button type="button" className="auth-back" onClick={() => goToStep('choice')}>
+                  Назад
+                </button>
               </div>
             )}
 
             {step === 'code' && (
               <div className="auth-form">
-                <CodeInput onChange={setCode} length={5} />
+                <CodeInput key="reg-code" onChange={setCode} length={5} />
                 {error && <div className="auth-error">{error}</div>}
                 <button type="button" className="auth-btn" onClick={submitCode} disabled={loading}>
-                  {loading ? 'Проверяю…' : 'Войти'}
+                  {loading ? 'Проверяю…' : 'Далее'}
                 </button>
                 <button type="button" className="auth-back" onClick={() => goToStep('creds')}>
                   Изменить данные
@@ -261,7 +372,56 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
                 <input className="auth-input" type="password" placeholder="Пароль 2FA" value={password} onChange={(e) => setPassword(e.target.value)} />
                 {error && <div className="auth-error">{error}</div>}
                 <button type="button" className="auth-btn" onClick={submitPassword} disabled={loading}>
+                  {loading ? 'Проверяю…' : 'Далее'}
+                </button>
+              </div>
+            )}
+
+            {step === 'account' && (
+              <div className="auth-form">
+                <div className="auth-uname">
+                  <input
+                    className="auth-input"
+                    placeholder="Логин"
+                    autoCapitalize="none"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+                  />
+                  {UNAME_RE.test(username.trim().toLowerCase()) && unameOk !== null && (
+                    <span className={`uname-mark ${unameOk ? 'ok' : 'bad'}`}>{unameOk ? '✓' : '✕'}</span>
+                  )}
+                </div>
+                <input className="auth-input" type="password" placeholder="Пароль" value={regPass} onChange={(e) => setRegPass(e.target.value)} />
+                {error && <div className="auth-error">{error}</div>}
+                <button type="button" className="auth-btn" onClick={submitAccount} disabled={loading || unameOk === false}>
+                  {loading ? 'Создаю…' : 'Создать аккаунт'}
+                </button>
+              </div>
+            )}
+
+            {step === 'login' && (
+              <div className="auth-form">
+                <input className="auth-input" placeholder="Логин" autoCapitalize="none" value={loginUser} onChange={(e) => setLoginUser(e.target.value.replace(/\s/g, ''))} />
+                <input className="auth-input" type="password" placeholder="Пароль" value={loginPass} onChange={(e) => setLoginPass(e.target.value)} />
+                {error && <div className="auth-error">{error}</div>}
+                <button type="button" className="auth-btn" onClick={submitLogin} disabled={loading}>
                   {loading ? 'Проверяю…' : 'Войти'}
+                </button>
+                <button type="button" className="auth-back" onClick={() => goToStep('choice')}>
+                  Назад
+                </button>
+              </div>
+            )}
+
+            {step === 'login-code' && (
+              <div className="auth-form">
+                <CodeInput key="login-code" onChange={setCode} length={5} />
+                {error && <div className="auth-error">{error}</div>}
+                <button type="button" className="auth-btn" onClick={submitLoginCode} disabled={loading}>
+                  {loading ? 'Проверяю…' : 'Войти'}
+                </button>
+                <button type="button" className="auth-back" onClick={() => goToStep('login')}>
+                  Назад
                 </button>
               </div>
             )}
@@ -269,7 +429,6 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
         </div>
       )}
 
-      {/* загрузка (по центру) */}
       {step === 'loading' && (
         <div className="auth-onboard">
           <div className="boot-status">{status}</div>
@@ -280,7 +439,6 @@ export default function AuthPage({ onDone }: { onDone: () => void }) {
         </div>
       )}
 
-      {/* результат (по центру) */}
       {step === 'result' && (
         <div className="auth-onboard">
           <div className="boot-counts-text">

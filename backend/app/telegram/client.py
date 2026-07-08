@@ -41,6 +41,13 @@ def build_login_client(api_id: int, api_hash: str) -> TelegramClient:
     )
 
 
+def build_client_with_session(api_id: int, api_hash: str, session: str) -> TelegramClient:
+    """Отдельный клиент из готовой сессии (для отправки кода входа в Избранное)."""
+    return TelegramClient(
+        StringSession(session), api_id, api_hash, flood_sleep_threshold=60, proxy=_proxy()
+    )
+
+
 async def get_client() -> TelegramClient | None:
     """Единый подключённый клиент, собранный из сохранённой в БД (зашифрованной)
     сессии. Возвращает None, если авторизации ещё нет."""

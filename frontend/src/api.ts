@@ -35,8 +35,9 @@ export async function reindexFeed(): Promise<{ added: number; videos: number; ph
 // ── Авторизация ──────────────────────────────────────────
 export interface AuthResult {
   ok: boolean;
-  step?: 'code' | 'password' | 'done';
+  step?: 'code' | 'password' | 'account' | 'login-code' | 'done';
   error?: string;
+  username?: string | null;
 }
 
 export async function authStatus(): Promise<boolean> {
@@ -164,6 +165,21 @@ export const authStart = (api_id: number, api_hash: string, phone: string) =>
   authPost('/api/auth/start', { api_id, api_hash, phone });
 export const authCode = (code: string) => authPost('/api/auth/code', { code });
 export const authPassword = (password: string) => authPost('/api/auth/password', { password });
+export const authRegister = (username: string, password: string) =>
+  authPost('/api/auth/register', { username, password });
+export const authLogin = (username: string, password: string) =>
+  authPost('/api/auth/login', { username, password });
+export const authLoginCode = (code: string) => authPost('/api/auth/login-code', { code });
+
+export async function checkUsername(u: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/auth/username-available?u=${encodeURIComponent(u)}`);
+    if (!res.ok) return false;
+    return !!(await res.json()).available;
+  } catch {
+    return false;
+  }
+}
 
 // «Не интересует» — пометить видео скрытым на сервере (больше не покажем).
 export async function hideVideo(id: number): Promise<void> {

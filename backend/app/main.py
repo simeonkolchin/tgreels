@@ -36,11 +36,10 @@ async def _index_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Старт НЕ должен зависеть от доступности Telegram — проверку/индексацию
+    # ведёт фоновый цикл, uvicorn поднимается сразу (иначе при недоступном
+    # Telegram сервер висит в startup и отдаёт 502).
     global _index_task
-    if await ensure_authorized():
-        print("[app] сессия авторизована")
-    else:
-        print("[app] нет авторизации — открой страницу и войди")
     _index_task = asyncio.create_task(_index_loop())
     yield
     if _index_task:

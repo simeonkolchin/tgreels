@@ -115,6 +115,51 @@ def clear_auth():
         db.execute("DELETE FROM settings WHERE key = ?", (k,))
 
 
+# ── Пользователи (логин/пароль поверх Telegram-сессии) ──────
+
+def username_exists(username: str) -> bool:
+    return db.query_one("SELECT 1 FROM users WHERE username = ?", (username,)) is not None
+
+
+def get_user_by_username(username: str):
+    return db.query_one("SELECT * FROM users WHERE username = ?", (username,))
+
+
+def get_user_by_id(uid: int):
+    return db.query_one("SELECT * FROM users WHERE id = ?", (uid,))
+
+
+def create_user(username, password_hash, api_id, api_hash, session, tg_username):
+    from app.crypto import encrypt
+
+    db.execute(
+        """
+        INSERT INTO users (username, password_hash, api_id, api_hash, session, tg_username, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            username,
+            password_hash,
+            encrypt(str(api_id)),
+            encrypt(api_hash),
+            encrypt(session),
+            tg_username,
+            int(time.time()),
+        ),
+    )
+
+
+def get_user_auth(user) -> dict:
+    """Расшифрованные Telegram-креды пользователя."""
+    from app.crypto import decrypt
+
+    return {
+        "api_id": int(decrypt(user["api_id"])),
+        "api_hash": decrypt(user["api_hash"]),
+        "session": decrypt(user["session"]),
+    }
+
+
 # ── Видео ───────────────────────────────────────────────────
 
 def insert_video(v: dict) -> bool:

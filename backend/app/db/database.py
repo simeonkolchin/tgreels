@@ -61,6 +61,17 @@ CREATE TABLE IF NOT EXISTS likes (
     video_id INTEGER PRIMARY KEY,
     added_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT UNIQUE NOT NULL,     -- логин в приложении (нижний регистр)
+    password_hash TEXT NOT NULL,
+    api_id        TEXT,                     -- зашифровано
+    api_hash      TEXT,                     -- зашифровано
+    session       TEXT,                     -- зашифрованная Telegram StringSession
+    tg_username   TEXT,                     -- @username в Telegram (для префилла)
+    created_at    INTEGER
+);
 """
 
 # sqlite3 синхронный; FastAPI + Telethon асинхронные. Держим одно соединение

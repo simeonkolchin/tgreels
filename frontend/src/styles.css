@@ -1710,6 +1710,40 @@ body {
   opacity: 0.6;
   cursor: default;
 }
+/* экран выбора войти/регистрация */
+.auth-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-btn-ghost {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+/* поле логина с индикатором доступности */
+.auth-uname {
+  position: relative;
+  display: flex;
+}
+.auth-uname .auth-input {
+  flex: 1;
+  padding-right: 38px;
+}
+.uname-mark {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  font-weight: 800;
+  pointer-events: none;
+}
+.uname-mark.ok {
+  color: #33d17a;
+}
+.uname-mark.bad {
+  color: #ff5a5a;
+}
 .auth-error {
   color: #ff5a5a;
   font-size: 13px;
