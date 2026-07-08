@@ -264,6 +264,23 @@ export default function ReelItem({
     }
   };
 
+  // Во весь экран. На iOS — нативный плеер (webkitEnterFullscreen), он показывает
+  // видео в его РОДНОЙ ориентации, игнорируя наш CSS-поворот → горизонтальное
+  // откроется горизонтально. На десктопе/Android — requestFullscreen + CSS-сброс.
+  const goFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current as
+      | (HTMLVideoElement & {
+          webkitEnterFullscreen?: () => void;
+          webkitRequestFullscreen?: () => void;
+        })
+      | null;
+    if (!v) return;
+    if (v.requestFullscreen) v.requestFullscreen().catch(() => {});
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+    else if (v.webkitRequestFullscreen) v.webkitRequestFullscreen();
+  };
+
   // Кнопка звука: только переключаем намерение (soundOn). Пауза НЕ слетает —
   // применение mute делает отдельный эффект, без play().
   const toggleSound = (e: React.MouseEvent) => {
@@ -371,6 +388,12 @@ export default function ReelItem({
         {buffering && active && !paused && <div className="spinner" />}
 
         {speeding && <div className="speed-badge">2x</div>}
+
+        {active && (
+          <button className="reel-fs" onClick={goFullscreen} aria-label="во весь экран">
+            <span className="fs-ic" />
+          </button>
+        )}
 
         {paused && active && (
           <div className="center-controls">
