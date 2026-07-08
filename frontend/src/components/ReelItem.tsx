@@ -269,7 +269,21 @@ export default function ReelItem({
   // откроется горизонтально. На десктопе/Android — requestFullscreen + CSS-сброс.
   const goFullscreen = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const v = videoRef.current as
+    // Берём видео ролика, который сейчас по ЦЕНТРУ экрана (что реально смотрят) —
+    // это надёжнее ref (не зависит от лага «active») и всегда загруженное = быстро.
+    let target: HTMLVideoElement | null = null;
+    const mid = window.innerHeight / 2;
+    let best = Infinity;
+    document.querySelectorAll<HTMLElement>('.reels .reel').forEach((r) => {
+      const rect = r.getBoundingClientRect();
+      const d = Math.abs(rect.top + rect.height / 2 - mid);
+      const vid = r.querySelector('video');
+      if (vid && d < best) {
+        best = d;
+        target = vid;
+      }
+    });
+    const v = (target || videoRef.current) as
       | (HTMLVideoElement & {
           webkitEnterFullscreen?: () => void;
           webkitRequestFullscreen?: () => void;
