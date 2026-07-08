@@ -38,6 +38,30 @@ export default function ReelsFeed({
   const [refreshing, setRefreshing] = useState(false);
   const pullRef = useRef(0); // актуальное значение pull для обработчика touchend
   pullRef.current = pull;
+  const soundOnRef = useRef(soundOn);
+  soundOnRef.current = soundOn;
+
+  // Фикс мобильного автоплея: браузер после пары свайпов запускает ролик БЕЗ звука
+  // (autoplay-with-sound без жеста блокируется → mute-фолбэк). На касании/свайпе
+  // (это жест) возвращаем звук играющему видео, если звук включён.
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const restore = () => {
+      if (!soundOnRef.current) return;
+      root.querySelectorAll<HTMLVideoElement>('video').forEach((v) => {
+        if (!v.paused && v.muted) v.muted = false;
+      });
+    };
+    root.addEventListener('touchstart', restore, { passive: true });
+    root.addEventListener('touchmove', restore, { passive: true });
+    root.addEventListener('touchend', restore, { passive: true });
+    return () => {
+      root.removeEventListener('touchstart', restore);
+      root.removeEventListener('touchmove', restore);
+      root.removeEventListener('touchend', restore);
+    };
+  }, []);
 
   // Открытие с конкретного ролика (тап по превью) — мгновенный скролл.
   useEffect(() => {
