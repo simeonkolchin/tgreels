@@ -161,6 +161,45 @@ export async function setLike(id: number, liked: boolean): Promise<void> {
   }
 }
 
+// ── Канал/чат ────────────────────────────────────────────
+export interface ChannelInfo {
+  id: string;
+  name: string;
+  username: string | null;
+  photoUrl: string;
+  stats: { subscribers: number | null; videos: number; photos: number };
+}
+
+export async function fetchChannel(id: string): Promise<ChannelInfo | null> {
+  try {
+    const res = await fetch(`/api/channel/${id}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchChannelVideos(id: string): Promise<FeedItem[]> {
+  try {
+    const res = await fetch(`/api/channel/${id}/videos`);
+    if (!res.ok) return [];
+    return (await res.json()).items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchChannelPhotos(id: string): Promise<string[]> {
+  try {
+    const res = await fetch(`/api/channel/${id}/photos`);
+    if (!res.ok) return [];
+    return (await res.json()).photos ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export const authStart = (api_id: number, api_hash: string, phone: string) =>
   authPost('/api/auth/start', { api_id, api_hash, phone });
 export const authCode = (code: string) => authPost('/api/auth/code', { code });

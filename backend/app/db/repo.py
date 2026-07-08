@@ -222,6 +222,39 @@ def get_video(video_id: int):
     return db.query_one(f"{_VIDEO_JOIN} WHERE v.id = ?", (video_id,))
 
 
+def get_channel(channel_id):
+    return db.query_one("SELECT * FROM channels WHERE id = ?", (str(channel_id),))
+
+
+def channel_video_rows(channel_id, limit: int = 150):
+    return db.query_all(
+        f"{_VIDEO_JOIN} WHERE v.hidden = 0 AND v.channel_id = ? "
+        "ORDER BY v.message_id DESC LIMIT ?",
+        (str(channel_id), limit),
+    )
+
+
+def channel_photo_ids(channel_id, limit: int = 150):
+    rows = db.query_all(
+        "SELECT id FROM photos WHERE channel_id = ? ORDER BY message_id DESC LIMIT ?",
+        (str(channel_id), limit),
+    )
+    return [r["id"] for r in rows]
+
+
+def count_channel_videos(channel_id) -> int:
+    return db.query_one(
+        "SELECT COUNT(*) AS n FROM videos WHERE channel_id = ? AND hidden = 0",
+        (str(channel_id),),
+    )["n"]
+
+
+def count_channel_photos(channel_id) -> int:
+    return db.query_one(
+        "SELECT COUNT(*) AS n FROM photos WHERE channel_id = ?", (str(channel_id),)
+    )["n"]
+
+
 def hide_video(video_id: int):
     """Пометить видео как «не интересует» — больше не показывать в ленте."""
     db.execute("UPDATE videos SET hidden = 1 WHERE id = ?", (video_id,))

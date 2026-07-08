@@ -12,22 +12,26 @@ function avatarFallback(e: React.SyntheticEvent<HTMLImageElement>) {
 interface Props {
   post: PhotoPost;
   onOpenPhoto: (photos: string[], index: number) => void;
+  onOpenChannel?: (id: string, name?: string) => void;
 }
 
 // Пост X-стиля: аватар + имя канала + текст, снизу коллаж из фото.
-export default function PostCard({ post, onOpenPhoto }: Props) {
+export default function PostCard({ post, onOpenPhoto, onOpenChannel }: Props) {
   const [expanded, setExpanded] = useState(false);
   const name = post.channel || 'канал';
+  const openChannel = () => onOpenChannel?.(post.channelId, post.channel);
 
   return (
     <article className="post">
-      <div className="post-ava">
+      <button className="post-ava" onClick={openChannel} aria-label="канал">
         <img src={post.channelPhotoUrl} alt="" onError={avatarFallback} />
-      </div>
+      </button>
       <div className="post-body">
         <div className="post-head">
-          <span className="post-name">{name}</span>
-          {post.username && <span className="post-handle">@{post.username}</span>}
+          <button className="post-name-btn" onClick={openChannel}>
+            <span className="post-name">{name}</span>
+            {post.username && <span className="post-handle">@{post.username}</span>}
+          </button>
         </div>
 
         {post.caption && (

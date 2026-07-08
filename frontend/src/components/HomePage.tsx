@@ -13,7 +13,13 @@ function avatarFallback(e: React.SyntheticEvent<HTMLImageElement>) {
   if (!img.src.endsWith(DEFAULT_AVATAR)) img.src = DEFAULT_AVATAR;
 }
 
-export default function HomePage({ onNav }: { onNav: (p: Page) => void }) {
+export default function HomePage({
+  onNav,
+  onOpenChannel,
+}: {
+  onNav: (p: Page) => void;
+  onOpenChannel?: (id: string, name?: string) => void;
+}) {
   const seedRef = useRef(Math.floor(Math.random() * 1_000_000_000));
   const [items, setItems] = useState<PhotoPost[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(0);
@@ -94,6 +100,7 @@ export default function HomePage({ onNav }: { onNav: (p: Page) => void }) {
             key={post.id}
             post={post}
             onOpenPhoto={(photos, index) => setViewer({ photos, index })}
+            onOpenChannel={onOpenChannel}
           />
         ))}
 

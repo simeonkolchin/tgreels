@@ -464,6 +464,64 @@ body {
   color: var(--muted);
 }
 
+/* элементы, ставшие кнопками (открыть канал) — сброс вида кнопки */
+.channel-open,
+.post-name-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.post-name-btn {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.channel-open:active,
+.post-ava:active,
+.audio-disc:active {
+  transform: scale(0.96);
+}
+.audio-disc {
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+.post-ava {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ── Pull-to-refresh (потянуть вниз из верхней зоны) ─────── */
+.pull-ind {
+  position: absolute;
+  z-index: 9;
+  top: calc(env(safe-area-inset-top, 0px) + 6px);
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.pull-spin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.28);
+  border-top-color: #fff;
+}
+.pull-ind.spinning .pull-spin {
+  animation: spin 0.7s linear infinite;
+  transform: none !important;
+}
+
 .caption-box {
   font-size: 13px;
   line-height: 1.35;
@@ -1075,6 +1133,27 @@ body {
 @keyframes prof-glow-move {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(22px, -16px) scale(1.12); }
+}
+/* второе, более подвижное свечение (страница канала) */
+.profile-glow.g2 {
+  left: 40%;
+  top: 16%;
+  width: 230px;
+  height: 230px;
+  margin-left: -115px;
+  background: #ff5c9a;
+  filter: blur(72px);
+  animation:
+    prof-glow-in2 1s ease 0.75s forwards,
+    prof-glow-move2 11s ease-in-out 0.75s infinite;
+}
+@keyframes prof-glow-in2 {
+  to { opacity: 0.32; }
+}
+@keyframes prof-glow-move2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-28px, 14px) scale(1.15); }
+  66% { transform: translate(20px, 22px) scale(0.95); }
 }
 .profile-back,
 .profile-gear {

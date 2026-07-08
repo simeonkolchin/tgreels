@@ -11,9 +11,10 @@ import TopBar from './TopBar';
 interface Props {
   onGoHome: () => void;
   fixed?: { items: FeedItem[]; startIndex?: number; likedAll?: boolean };
+  onOpenChannel?: (id: string, name?: string) => void;
 }
 
-export default function ReelsPage({ onGoHome, fixed }: Props) {
+export default function ReelsPage({ onGoHome, fixed, onOpenChannel }: Props) {
   const seedRef = useRef(Math.floor(Math.random() * 1_000_000_000));
   const [items, setItems] = useState<FeedItem[]>(fixed ? fixed.items : []);
   const [nextOffset, setNextOffset] = useState<number | null>(fixed ? null : 0);
@@ -90,7 +91,7 @@ export default function ReelsPage({ onGoHome, fixed }: Props) {
 
   return (
     <>
-      <TopBar onBack={onGoHome} onRefresh={refresh} />
+      <TopBar onBack={onGoHome} />
       {!loaded && items.length === 0 && (
         <div className="placeholder">
           <div className="spinner" />
@@ -128,6 +129,8 @@ export default function ReelsPage({ onGoHome, fixed }: Props) {
           onNearEnd={loadMore}
           likedIds={likedIds}
           onLike={setLike}
+          onRefresh={refresh}
+          onOpenChannel={onOpenChannel}
         />
       )}
     </>

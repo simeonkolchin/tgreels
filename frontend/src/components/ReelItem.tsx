@@ -64,6 +64,7 @@ interface Props {
   onEnded: (index: number) => void;
   initialLiked?: boolean;
   onLikeChange?: (id: number, liked: boolean) => void;
+  onOpenChannel?: (id: string, name?: string) => void;
 }
 
 export default function ReelItem({
@@ -77,7 +78,12 @@ export default function ReelItem({
   onEnded,
   initialLiked = false,
   onLikeChange,
+  onOpenChannel,
 }: Props) {
+  const openChannel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onOpenChannel?.(item.channelId, item.channel);
+  };
   const videoRef = useRef<HTMLVideoElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const soundOnRef = useRef(soundOn);
@@ -113,7 +119,6 @@ export default function ReelItem({
   const [expanded, setExpanded] = useState(false);
   const [liked, setLiked] = useState(initialLiked);
   const [breaking, setBreaking] = useState(false); // анимация «разбитого сердца» при снятии лайка
-  const [followed, setFollowed] = useState(false);
   const [speeding, setSpeeding] = useState(false); // удержание справа → 2x
   const lastTapRef = useRef(0);
   const holdTimer = useRef<number | undefined>(undefined);
@@ -447,25 +452,19 @@ export default function ReelItem({
             <IconDots size={26} className="svg-icon" />
           </button>
 
-          <div className="audio-disc">
+          <button className="audio-disc" onClick={openChannel} aria-label="канал">
             <img src={item.channelPhotoUrl} alt="" onError={avatarFallback} />
-          </div>
+          </button>
         </div>
 
         {/* Инфо канала + описание (слева снизу) */}
         <div className="overlay-bottom" onClick={(e) => e.stopPropagation()}>
-          <div className="channel-row">
+          <button className="channel-row channel-open" onClick={openChannel}>
             <div className="channel-ava">
               <img src={item.channelPhotoUrl} alt="" onError={avatarFallback} />
             </div>
             <span className="channel-name">{name}</span>
-            <button
-              className={`follow-btn ${followed ? 'following' : ''}`}
-              onClick={() => setFollowed((f) => !f)}
-            >
-              {followed ? 'Вы подписаны' : 'Подписаться'}
-            </button>
-          </div>
+          </button>
 
           {item.caption && (
             <div className="caption-box">
