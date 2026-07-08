@@ -13,6 +13,7 @@ interface Props {
   startIndex?: number;
   onRefresh?: () => void;
   onOpenChannel?: (id: string, name?: string) => void;
+  paused?: boolean;
 }
 
 const PULL_ZONE = 0.24; // верхняя доля экрана, откуда работает «потянуть вниз»
@@ -29,6 +30,7 @@ export default function ReelsFeed({
   startIndex = 0,
   onRefresh,
   onOpenChannel,
+  paused,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(startIndex);
@@ -144,7 +146,7 @@ export default function ReelsFeed({
             key={item.id}
             index={i}
             item={item}
-            active={i === activeIndex}
+            active={!paused && i === activeIndex}
             preload={Math.abs(i - activeIndex) <= 2}
             soundOn={soundOn}
             onSetSound={onSetSound}

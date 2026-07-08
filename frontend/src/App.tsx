@@ -60,7 +60,9 @@ export default function App() {
   return (
     <div className="app">
       <div className={`stage ${page === 'reels' ? 'reels-stage' : ''}`}>
-        {page === 'reels' && <ReelsPage onGoHome={() => setPage('home')} onOpenChannel={openChannel} />}
+        {page === 'reels' && (
+          <ReelsPage onGoHome={() => setPage('home')} onOpenChannel={openChannel} paused={!!channel} />
+        )}
         {page === 'home' && <HomePage onNav={setPage} onOpenChannel={openChannel} />}
         {page === 'search' && <StubPage title="Поиск" emoji="🔍" active="search" onNav={setPage} />}
         {page === 'notifications' && (

@@ -214,9 +214,9 @@ body {
 /* ── Кнопка «во весь экран» (справа сверху, под кнопкой обновления) ── */
 .reel-fs {
   position: absolute;
-  z-index: 7;
-  top: calc(env(safe-area-inset-top, 0px) + 58px);
-  right: 12px;
+  z-index: 11; /* выше топбара (z10) */
+  top: max(10px, env(safe-area-inset-top));
+  right: 10px;
   padding: 6px;
   display: grid;
   place-items: center;
@@ -1069,6 +1069,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 10; /* выше хедера (z8) → стрелка/шестерёнка кликабельны */
+  background: #000; /* отдельная непрозрачная страница (не просвечивают рилсы) */
   overflow-y: auto;
   scrollbar-width: none;
   padding-bottom: 80px; /* место под нижнюю навигацию */

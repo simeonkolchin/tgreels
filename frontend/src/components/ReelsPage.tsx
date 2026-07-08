@@ -12,9 +12,10 @@ interface Props {
   onGoHome: () => void;
   fixed?: { items: FeedItem[]; startIndex?: number; likedAll?: boolean };
   onOpenChannel?: (id: string, name?: string) => void;
+  paused?: boolean; // пауза (когда сверху открыта страница канала)
 }
 
-export default function ReelsPage({ onGoHome, fixed, onOpenChannel }: Props) {
+export default function ReelsPage({ onGoHome, fixed, onOpenChannel, paused }: Props) {
   const seedRef = useRef(Math.floor(Math.random() * 1_000_000_000));
   const [items, setItems] = useState<FeedItem[]>(fixed ? fixed.items : []);
   const [nextOffset, setNextOffset] = useState<number | null>(fixed ? null : 0);
@@ -131,6 +132,7 @@ export default function ReelsPage({ onGoHome, fixed, onOpenChannel }: Props) {
           onLike={setLike}
           onRefresh={refresh}
           onOpenChannel={onOpenChannel}
+          paused={paused}
         />
       )}
     </>
