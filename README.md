@@ -1,147 +1,151 @@
-# Vertical Videos → Reels (Telegram как хостинг)
+<div align="center">
 
-Лента вертикальных видео «как в инсте», где ролики **не хранятся у тебя**, а
-стримятся прямо из твоих Telegram-каналов. Сервер — тонкий ретранслятор: читает
-файл из Telegram кусками по мере просмотра (HTTP Range) и отдаёт браузеру. На диск
-видео не пишется. В БД лежат только `message_id` + метаданные + маленькое превью.
+# 🎬 tgreels
 
-- **backend (API)** — Python (Telethon + FastAPI): раздаёт ленту и стримит видео с Range.
-- **worker** — отдельный контейнер: индексатор, крутится независимо, пишет в ту же БД,
-  сам переиндексирует раз в N часов. Не влияет на раздачу.
-- **frontend** — React + TypeScript (Vite): reels-лента, адаптив под мобилку и ноут.
-- **Запуск** — Docker Compose (3 сервиса: backend, worker, frontend).
+**A vertical-video "reels" feed where the storage backend is Telegram — nothing is hosted on your disk.**
 
+[![Live](https://img.shields.io/badge/live-tgreels.ru-ff2e63?logo=telegram&logoColor=white)](https://tgreels.ru)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
+[![React](https://img.shields.io/badge/React-18-20232A?logo=react&logoColor=61DAFB)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](#)
+[![Telethon](https://img.shields.io/badge/Telethon-userbot-2CA5E0?logo=telegram&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](#-quick-start-docker)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Status](https://img.shields.io/badge/status-live-success)
+
+### 🌐 Live at **[tgreels.ru](https://tgreels.ru)**
+
+[Quick Start](#-quick-start-docker) · [How It Works](#️-how-it-works) · [Features](#-features) · [Configuration](#️-configuration) · [Docs](docs/getting-started.md)
+
+</div>
+
+---
+
+## 🚀 What is tgreels?
+
+**tgreels** is an Instagram-Reels-style vertical video feed — but the videos **are never stored on the server**. They live in *your* Telegram channels, and the backend acts as a thin relay: it re-resolves the Telegram message on demand and streams the file to the browser in chunks over HTTP `Range`. Nothing hits disk. The database only holds `message_id`, lightweight metadata, and a tiny poster thumbnail.
+
+You log in once with your own Telegram account (a userbot session), the indexer walks the channels you're subscribed to and records every vertical video message, and the feed serves them back in a deterministic shuffled order — an endless, stable scroll per session.
+
+> 💡 **Design principle — Telegram is the CDN.** The server owns no media, only pointers. Storage, bandwidth, and durability are Telegram's problem; the app stays tiny.
+
+## ✨ Features
+
+|  |  |
+|---|---|
+| 📱 **Swipe feed** | Vertical videos in native orientation, autoplay, infinite scroll |
+| 🔊 **Smart sound** | Restores audio on swipe (works around mobile autoplay muting) |
+| 📺 **Channels** | Tap a channel to open its page, pull-to-refresh |
+| ⛶ **Fullscreen** | Fullscreen button, video shown in its native aspect ratio |
+| 🌊 **Streamed, never stored** | HTTP `Range` streaming straight from Telegram — zero media on disk |
+| 🔀 **Deterministic shuffle** | Seeded feed order → stable, resumable, "endless" scroll per session |
+| 🔐 **Telegram-based auth** | Register/login through your own Telegram account; a one-time code is sent to your Saved Messages |
+| 🖼️ **Instant posters** | Thumbnails cached as BLOBs in SQLite → no round-trip to Telegram to show a poster |
+
+## 🏗️ How It Works
+
+```mermaid
+flowchart LR
+    U[Browser<br/>React reels UI] -->|Range request| N[nginx]
+    N --> API[FastAPI backend]
+    API -->|/api/feed| DB[(SQLite<br/>ids + meta + thumbs)]
+    API -->|/stream/:id<br/>re-resolve fileReference| TG[(Telegram<br/>your channels)]
+    IDX[In-process indexer] -->|Telethon userbot| TG
+    IDX --> DB
 ```
-├── backend/            # общий образ для API и воркера
-│   ├── app/
-│   │   ├── config.py
-│   │   ├── main.py             # FastAPI (только раздача)
-│   │   ├── telegram/           # клиент, media-хелперы, streamer (Range)
-│   │   ├── db/                 # sqlite (WAL, мультипроцесс) + сид-шафл ленты
-│   │   ├── parser/indexer.py   # диалоги → каналы → видео
-│   │   └── routes/             # /stream /thumb /api/feed
-│   └── scripts/
-│       ├── login.py            # интерактивная авторизация
-│       └── worker.py           # цикл индексации (запускается сервисом worker)
-└── frontend/           # React + TS reels UI
-```
 
-Обмен между API и воркером — **только через sqlite** (общий volume). Никакой общей
-памяти/сессии: воркер пишет ролики, API читает и стримит, кэш ленты в API
-инвалидируется по сигнатуре БД (`count, max_id`), так что новые ролики подхватываются
-без рестарта.
+1. You authorize **your** Telegram session (userbot) once via the web login page. `api_id` / `api_hash` and the session string are stored **encrypted** in the DB (Fernet key auto-generated on first start).
+2. The indexer scans the **channels you're subscribed to** and stores the ids of all video messages (with a vertical filter, duration, dimensions, and a poster). The first pass fetches history; later passes fetch only what's new.
+3. A background loop re-indexes every `INDEX_INTERVAL_HOURS` (default 12).
+4. The frontend calls `/api/feed`; the server returns clips in a **deterministic seeded shuffle** (a stable infinite feed per session).
+5. `<video>` hits `/stream/:id` with a `Range` header → the backend re-resolves the message (fresh `fileReference`) and streams the requested bytes from Telegram.
 
-## Как это работает
+## ⚡ Quick Start (Docker)
 
-1. Ты авторизуешь **свою** Telegram-сессию (userbot) один раз — она сохраняется в
-   `backend/data/session/`.
-2. Индексатор смотрит **список каналов, на которые ты подписан**, и складывает в
-   sqlite id всех видео-сообщений (+ вертикальный фильтр, длительность, размеры,
-   превью). Первый проход забирает всю историю, дальше — только новое.
-3. Планировщик повторяет это каждые `INDEX_INTERVAL_HOURS` часов (по умолчанию 12).
-4. Фронт запрашивает `/api/feed` — сервер отдаёт ролики в **разнобой**
-   (детерминированный сид-шафл: стабильная бесконечная лента на сессию).
-5. `<video>` бьёт в `/stream/:id` с заголовком `Range` → бэкенд ре-резолвит
-   сообщение (свежий `fileReference`) и стримит нужные байты из Telegram.
+**1. Telegram API keys** — go to <https://my.telegram.org> → *API development tools*, create an app, grab `api_id` and `api_hash`.
 
-## Быстрый старт
+**2. Environment**
 
-### 1. API-ключи Telegram
-Зайди на https://my.telegram.org → **API development tools**, создай приложение,
-получи `api_id` и `api_hash`.
-
-### 2. .env
 ```bash
-cp backend/.env.example backend/.env
-# впиши API_ID и API_HASH
+git clone https://github.com/simeonkolchin/tgreels.git
+cd tgreels
+cp backend/.env.example backend/.env   # optional: API_ID / API_HASH can also be entered on the login page
 ```
 
-### 3. Авторизация сессий (интерактивно)
-API и парсер-воркер — разные контейнеры и **не могут делить одну Telegram-сессию**
-(общий `.session` = блокировки и риск разлогина). Поэтому логинимся дважды одним
-и тем же аккаунтом — в приложении Telegram это будут два «активных устройства»:
+**3. Run**
 
-```bash
-docker compose run --rm backend python scripts/login.py   # сессия API  → data/session/api.session
-docker compose run --rm worker  python scripts/login.py   # сессия воркера → data/session/worker.session
-```
-Каждый раз: телефон → код из Telegram → (если есть) пароль 2FA.
-
-### 4. Первичный прогон парсера (наполнит БД, разово)
-Сначала гоняем **только** парсер — он пробежится по каналам, запишет всё в БД и
-выйдет. Долгоживущий воркер в этот момент ещё не запущен, поэтому его сессия
-используется строго последовательно, без пересечений.
 ```bash
 docker compose build
-docker compose run --rm worker python scripts/reindex.py
-```
-Дождись `[index] готово: …` в выводе.
-
-### 5. Запуск сервисов
-```bash
 docker compose up -d
 ```
-Открой **http://localhost:8080**
 
-Теперь параллельно и независимо работают:
-- **backend** — раздаёт ленту и стримит видео (своя сессия `api`);
-- **worker** — сам переиндексирует каналы каждые `INDEX_INTERVAL_HOURS` часов и
-  дописывает новые ролики в БД (своя сессия `worker`), не мешая раздаче. Т.к. после
-  ручного прогона БД уже наполнена, первый авто-проход воркер сделает через интервал.
+Open **<http://localhost:5080>** and complete the Telegram login on the auth page (phone → code → 2FA if enabled). The indexer runs in-process and fills the DB in the background.
 
-Логи:
 ```bash
-docker compose logs -f worker     # прогресс индексации
-docker compose logs -f backend    # раздача/стрим
+docker compose logs -f backend    # feed / streaming / indexing progress
 ```
 
-### Переиндексировать вручную позже
-Чтобы не пересекаться с воркером по его сессии — останови его на время прогона:
-```bash
-docker compose stop worker
-docker compose run --rm worker python scripts/reindex.py
-docker compose start worker
-```
-
-## Настройки (`backend/.env`)
-
-| Переменная | По умолчанию | Смысл |
-|---|---|---|
-| `API_ID` / `API_HASH` | — | ключи с my.telegram.org |
-| `INDEX_INTERVAL_HOURS` | `12` | как часто искать новые видео |
-| `MAX_HISTORY_PER_CHANNEL` | `0` | лимит сообщений при первом проходе (0 = вся история) |
-| `VERTICAL_ONLY` | `true` | брать только вертикальные ролики (h ≥ w) |
-| `INCLUDE_GROUPS` | `false` | включать супергруппы, а не только каналы |
-
-## Локальная разработка (без докера)
+## 🧑‍💻 Local Development (no Docker)
 
 ```bash
-# backend
+# backend  → :8000
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/login.py           # один раз
-uvicorn app.main:app --reload     # :8000
+uvicorn app.main:app --reload
 
-# frontend (в другом терминале)
+# frontend → :5173 (proxies /api, /stream, /thumb to :8000)
 cd frontend
 npm install
-npm run dev                        # :5173, проксирует API на :8000
+npm run dev
 ```
 
-## Технические нюансы
+## ⚙️ Configuration
 
-- **fileReference протухает** (часы). Поэтому документ ре-резолвится на каждый
-  запрос через `get_messages`, а результат кэшируется на 60 сек — плеер шлёт много
-  Range-запросов на один ролик, не хочется дёргать Telegram каждый раз.
-- **Выравнивание**: Telegram требует offset кратный 4096; берём вниз и отрезаем
-  лишнее в первом чанке. `request_size` = 512 КБ (тоже кратно 4096).
-- **FLOOD_WAIT**: у клиента выставлен `flood_sleep_threshold=120` — Telethon сам
-  переждёт умеренные троттлы. Между каналами индексатор делает паузу.
-- **Превью** качаются при индексации и лежат BLOB'ом в sqlite → мгновенный poster
-  без обращения в Telegram.
+All backend config is via `backend/.env` (see [`backend/.env.example`](backend/.env.example)).
 
-## Важно про контент
+| Variable | Default | Meaning |
+|---|---|---|
+| `API_ID` / `API_HASH` | — | Keys from my.telegram.org (also enterable on the login page) |
+| `SESSION_PATH` | `./data/session/userbot` | Telethon session path (local runs) |
+| `DB_PATH` | `./data/videos.db` | SQLite database path |
+| `SECRET_KEY_FILE` | `./data/secret.key` | Fernet key for encrypting stored sessions (auto-generated) |
+| `PORT` | `8000` | Backend port |
+| `INDEX_INTERVAL_HOURS` | `12` | How often to re-scan channels for new videos |
+| `MAX_HISTORY_PER_CHANNEL` | `0` | Message cap on the first pass (`0` = full history) |
+| `VERTICAL_ONLY` | `false` | Only take vertical clips (`h ≥ w`) |
+| `INCLUDE_GROUPS` | `false` | Include megagroup supergroups, not just broadcast channels |
+| `TG_PROXY` | — | Telethon proxy, e.g. `socks5://user:pass@host:port` |
 
-Схема рассчитана на **твои собственные** вертикальные видео из твоих каналов.
-Ре-хостинг чужого/копирайтного контента нарушает авторские права и ToS Telegram.
+## 🔧 Technical Notes
+
+- **`fileReference` expires** (hours). The document is re-resolved on every request via `get_messages`, and the result is cached for 60s — the player fires many `Range` requests per clip, so we avoid hammering Telegram.
+- **Alignment:** Telegram requires offsets that are multiples of 4096; we round down and trim the first chunk. `request_size` = 1 MB (also a multiple of 4096) to cut round-trips.
+- **FLOOD_WAIT:** the client runs with `flood_sleep_threshold=120` so Telethon rides out moderate throttles; the indexer pauses between channels.
+- **Posters** are fetched at index time and stored as BLOBs in SQLite → instant poster with no Telegram call.
+
+## 🛡️ Security
+
+See [SECURITY.md](SECURITY.md). In short: Telegram sessions are stored **encrypted** (Fernet), secrets live only in `.env` / the DB (both gitignored), app passwords are PBKDF2-hashed, and login requires a one-time code delivered to your own Telegram Saved Messages.
+
+## 📚 Documentation
+
+- [Getting Started](docs/getting-started.md)
+
+## ⚖️ On content
+
+This is designed for **your own** vertical videos from **your own** channels. Re-hosting third-party or copyrighted content violates copyright and Telegram's ToS.
+
+## 🗺️ Roadmap
+
+- [ ] Likes & comments
+- [ ] Recommendation feed
+- [ ] PWA / installable app
+
+## 🧑‍💻 Contributing
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## 📄 License
+
+MIT © [Simeon Kolchin](https://github.com/simeonkolchin)

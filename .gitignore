@@ -1,5 +1,24 @@
+# Dependencies
 node_modules/
+.venv/
+venv/
+
+# Secrets & runtime data
 .env
 data/
+*.session
+*.session-journal
+secret.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Build output
+dist/
+build/
+
+# Logs & OS
 *.log
 .DS_Store
